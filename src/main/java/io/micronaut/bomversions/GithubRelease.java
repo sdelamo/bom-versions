@@ -7,11 +7,21 @@ import io.micronaut.core.annotation.Introspected;
 public class GithubRelease {
 
     private String name;
+
+    private boolean draft;
     @JsonProperty("tag_name")
     private String tagName;
     private String url;
 
     public GithubRelease() {
+    }
+
+    public boolean isDraft() {
+        return draft;
+    }
+
+    public void setDraft(boolean draft) {
+        this.draft = draft;
     }
 
     public String getName() {

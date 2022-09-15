@@ -1,6 +1,7 @@
 package io.micronaut.bomversions;
 
 import io.micronaut.configuration.picocli.PicocliRunner;
+import io.micronaut.core.version.SemanticVersion;
 import jakarta.inject.Inject;
 import picocli.CommandLine.Command;
 import picocli.CommandLine.Option;
@@ -10,6 +11,8 @@ import java.io.File;
 import java.io.FileNotFoundException;
 import java.io.FileReader;
 import java.io.IOException;
+import java.util.Comparator;
+import java.util.List;
 
 @Command(name = "bom-versions", description = "...",
         mixinStandardHelpOptions = true)
@@ -41,16 +44,25 @@ public class BomVersionsCommand implements Runnable {
                     String projectName = line.substring("managed-".length(), line.indexOf(" = \""));
                     String version = line.substring(line.indexOf(" = \"") + " = \"".length()).replaceAll("\"", "");
                     Project project = new Project(projectName, version);
-                    GithubRelease githubRelease = githubApiClient.latest(configuration.getOrganization(), project.getName());
-                    if (githubRelease == null) {
-                        System.out.println("Could not fetch release for project: " + project.getName());
+                    List<GithubRelease> githubReleases = githubApiClient.releases(configuration.getOrganization(), project.getName(), 3);
+                    if (githubReleases == null) {
+                        System.out.println("Could not fetch releases for project: " + project.getName());
                     } else {
-                        String githubReleaseVersion = githubRelease.getTagName().replace("v", "");
-                        if (!githubReleaseVersion.equals(project.getVersion())) {
-                            System.out.println(project.getName() + " bom version: " + project.getVersion() + " github version: " + githubReleaseVersion);
-                        }
+                        githubReleases.stream()
+                                .filter(release -> !release.isDraft())
+                                .map(GithubRelease::getTagName)
+                                .filter(v -> !(v.contains("M") || v.contains("RC") || !v.contains(".") || v.contains("untagged")))
+                                .map(tagName -> tagName.replace("v", ""))
+                                .map(SemanticVersion::new)
+                                .sorted(Comparator.reverseOrder())
+                                .map(SemanticVersion::getVersion)
+                                .findFirst()
+                                .ifPresent(githubReleaseVersion -> {
+                                    if (!githubReleaseVersion.equals(project.getVersion())) {
+                                        System.out.println(project.getName() + " bom version: " + project.getVersion() + " github version: " + githubReleaseVersion);
+                                    }
+                        });
                     }
-
                 }
                 // process the line.
             }

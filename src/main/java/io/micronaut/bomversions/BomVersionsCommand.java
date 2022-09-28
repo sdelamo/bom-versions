@@ -1,6 +1,7 @@
 package io.micronaut.bomversions;
 
 import io.micronaut.configuration.picocli.PicocliRunner;
+import io.micronaut.core.util.StringUtils;
 import io.micronaut.core.version.SemanticVersion;
 import jakarta.inject.Inject;
 import picocli.CommandLine.Command;
@@ -21,6 +22,9 @@ public class BomVersionsCommand implements Runnable {
     @Option(names = {"-v", "--verbose"}, description = "...")
     boolean verbose;
 
+    @Option(names = {"-p", "--patch"})
+    boolean patch = true;
+
     @Inject
     GithubApiClient githubApiClient;
 
@@ -35,7 +39,6 @@ public class BomVersionsCommand implements Runnable {
         run(new File("/Users/sdelamo/github/micronaut-projects/micronaut-core/gradle/libs.versions.toml"));
     }
     public void run(File f) {
-
         try (BufferedReader br = new BufferedReader(new FileReader(f))) {
             String line;
             while ((line = br.readLine()) != null) {
@@ -53,6 +56,14 @@ public class BomVersionsCommand implements Runnable {
                                 .map(GithubRelease::getTagName)
                                 .filter(v -> !(v.contains("M") || v.contains("RC") || !v.contains(".") || v.contains("untagged")))
                                 .map(tagName -> tagName.replace("v", ""))
+                                .filter(semanticVersion -> {
+                                    if (patch) {
+                                        String projectVersion = project.getVersion();
+                                        String mayorMinor = projectVersion.substring(0, projectVersion.lastIndexOf("."));
+                                        return semanticVersion.startsWith(mayorMinor);
+                                    }
+                                    return true;
+                                })
                                 .map(SemanticVersion::new)
                                 .sorted(Comparator.reverseOrder())
                                 .map(SemanticVersion::getVersion)

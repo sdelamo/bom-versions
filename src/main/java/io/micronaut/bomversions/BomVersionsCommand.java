@@ -23,7 +23,7 @@ public class BomVersionsCommand implements Runnable {
     boolean verbose;
 
     @Option(names = {"-p", "--patch"})
-    boolean patch = true;
+    boolean patch = false;
 
     @Inject
     GithubApiClient githubApiClient;

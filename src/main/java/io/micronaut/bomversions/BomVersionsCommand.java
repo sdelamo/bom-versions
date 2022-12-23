@@ -38,6 +38,21 @@ public class BomVersionsCommand implements Runnable {
     public void run() {
         run(new File("/Users/sdelamo/github/micronaut-projects/micronaut-core/gradle/libs.versions.toml"));
     }
+
+    private String cleanupName(Project project) {
+        String name = project.getName();
+        if (name.equals("micronaut-mongo")) {
+            return "micronaut-mongodb";
+        } else if (name.equals("micronaut-discovery")) {
+            return "micronaut-discovery-client";
+        } else if (name.equals("micronaut-oraclecloud")) {
+            return "micronaut-oracle-cloud";
+        } else if (name.equals("micronaut-xml")) {
+            return "micronaut-jackson-xml";
+        }
+        return name;
+    }
+
     public void run(File f) {
         try (BufferedReader br = new BufferedReader(new FileReader(f))) {
             String line;
@@ -47,9 +62,13 @@ public class BomVersionsCommand implements Runnable {
                     String projectName = line.substring("managed-".length(), line.indexOf(" = \""));
                     String version = line.substring(line.indexOf(" = \"") + " = \"".length()).replaceAll("\"", "");
                     Project project = new Project(projectName, version);
-                    List<GithubRelease> githubReleases = githubApiClient.releases(configuration.getOrganization(), project.getName(), 3);
+                    String name = cleanupName(project);
+                    if (verbose) {
+                        System.out.println("fetching releases from project: " + name);
+                    }
+                    List<GithubRelease> githubReleases = githubApiClient.releases(configuration.getOrganization(), name, 10);
                     if (githubReleases == null) {
-                        System.out.println("Could not fetch releases for project: " + project.getName());
+                        System.out.println("Could not fetch releases for project: " + name);
                     } else {
                         githubReleases.stream()
                                 .filter(release -> !release.isDraft())
@@ -70,7 +89,7 @@ public class BomVersionsCommand implements Runnable {
                                 .findFirst()
                                 .ifPresent(githubReleaseVersion -> {
                                     if (!githubReleaseVersion.equals(project.getVersion())) {
-                                        System.out.println(project.getName() + " bom version: " + project.getVersion() + " github version: " + githubReleaseVersion);
+                                        System.out.println(name + " bom version: " + project.getVersion() + " github version: " + githubReleaseVersion);
                                     }
                         });
                     }

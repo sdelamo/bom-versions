@@ -22,8 +22,17 @@ public class BomVersionsCommand implements Runnable {
     @Option(names = {"-v", "--verbose"}, description = "...")
     boolean verbose;
 
+    @Option(names = {"--platform"})
+    boolean platform = true;
+
     @Option(names = {"-p", "--patch"})
     boolean patch = false;
+
+    @Option(names = {"-m", "--milestone"})
+    boolean milestone = true;
+
+    @Option(names = {"-rc", "--release-candidate"})
+    boolean releaseCandidate = true;
 
     @Inject
     GithubApiClient githubApiClient;
@@ -36,7 +45,7 @@ public class BomVersionsCommand implements Runnable {
     }
 
     public void run() {
-        run(new File("/Users/sdelamo/github/micronaut-projects/micronaut-core/gradle/libs.versions.toml"));
+        run(new File("/Users/sdelamo/github/micronaut-projects/" + (platform ? "micronaut-platform" : "micronaut-core")  + "/gradle/libs.versions.toml"));
     }
 
     private String cleanupName(Project project) {
@@ -73,7 +82,18 @@ public class BomVersionsCommand implements Runnable {
                         githubReleases.stream()
                                 .filter(release -> !release.isDraft())
                                 .map(GithubRelease::getTagName)
-                                .filter(v -> !(v.contains("M") || v.contains("RC") || !v.contains(".") || v.contains("untagged")))
+                                .filter(v -> {
+                                    if (!v.contains(".") || v.contains("untagged")) {
+                                        return false;
+                                    }
+                                    if (!milestone && v.contains("M")) {
+                                        return false;
+                                    }
+                                    if (!releaseCandidate && v.contains("RC")) {
+                                        return false;
+                                    }
+                                    return true;
+                                })
                                 .map(tagName -> tagName.replace("v", ""))
                                 .filter(semanticVersion -> {
                                     if (patch) {
